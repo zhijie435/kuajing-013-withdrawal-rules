@@ -6,34 +6,81 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     rules: [],
     applications: [],
     reviews: [],
-    records: []
+    records: [],
+    loading: {
+      rules: false,
+      applications: false,
+      reviews: false,
+      records: false
+    },
+    currentApplication: null,
+    currentRecord: null
   }),
 
   getters: {
     pendingCount: (state) => state.applications.filter((a) => a.status === 'pending').length,
     reviewingCount: (state) => state.applications.filter((a) => a.status === 'reviewing').length,
-    activeRules: (state) => state.rules.filter((r) => r.status === 'active')
+    activeRules: (state) => state.rules.filter((r) => r.status === 'active'),
+    getApplicationById: (state) => (id) => state.applications.find((a) => a.id === id),
+    getRecordById: (state) => (id) => state.records.find((r) => r.id === id)
   },
 
   actions: {
     async fetchRules() {
-      const res = await get('/withdrawal/rules/')
-      this.rules = res.data || res
+      this.loading.rules = true
+      try {
+        const res = await get('/withdrawal/rules/')
+        this.rules = res.data || res
+      } finally {
+        this.loading.rules = false
+      }
     },
 
     async fetchApplications(params) {
-      const res = await get('/withdrawal/applications/', params)
-      this.applications = res.data || res
+      this.loading.applications = true
+      try {
+        const res = await get('/withdrawal/applications/', params)
+        this.applications = res.data || res
+      } finally {
+        this.loading.applications = false
+      }
     },
 
     async fetchReviews(params) {
-      const res = await get('/withdrawal/applications/', params)
-      this.reviews = res.data || res
+      this.loading.reviews = true
+      try {
+        const res = await get('/withdrawal/applications/', params)
+        this.reviews = res.data || res
+      } finally {
+        this.loading.reviews = false
+      }
     },
 
     async fetchRecords(params) {
-      const res = await get('/withdrawal/records/', params)
-      this.records = res.data || res
+      this.loading.records = true
+      try {
+        const res = await get('/withdrawal/records/', params)
+        this.records = res.data || res
+      } finally {
+        this.loading.records = false
+      }
+    },
+
+    async fetchApplicationDetail(id) {
+      const res = await get(`/withdrawal/applications/${id}`)
+      this.currentApplication = res.data || res
+      return this.currentApplication
+    },
+
+    async fetchRecordDetail(id) {
+      const res = await get(`/withdrawal/records/${id}`)
+      this.currentRecord = res.data || res
+      return this.currentRecord
+    },
+
+    async checkWithdrawalLimit(userId, amount, ruleId) {
+      const res = await get('/withdrawal/check-limit/', { user_id: userId, amount, rule_id: ruleId })
+      return res.data || res
     },
 
     async createRule(data) {
@@ -66,6 +113,28 @@ export const useWithdrawalStore = defineStore('withdrawal', {
 
     async updateRecord(id, data) {
       return await put(`/withdrawal/records/${id}`, data)
+    },
+
+    calculateFee(amount, rule) {
+      if (!rule) return { fee: 0, actualAmount: amount }
+      let fee = Number(amount) * Number(rule.fee_rate || 0)
+      if (rule.fee_min && fee < Number(rule.fee_min)) fee = Number(rule.fee_min)
+      if (rule.fee_max && fee > Number(rule.fee_max)) fee = Number(rule.fee_max)
+      fee = Number(fee.toFixed(2))
+      return { fee, actualAmount: Number((Number(amount) - fee).toFixed(2)) }
+    },
+
+    validateWithdrawalAmount(amount, rule) {
+      if (!rule) return { valid: false, message: '请选择提现规则' }
+      const numAmount = Number(amount)
+      if (!numAmount || numAmount <= 0) return { valid: false, message: '请输入有效金额' }
+      if (rule.min_amount && numAmount < Number(rule.min_amount)) {
+        return { valid: false, message: `提现金额不能低于最低限额 ${rule.min_amount}` }
+      }
+      if (rule.max_amount && numAmount > Number(rule.max_amount)) {
+        return { valid: false, message: `提现金额不能超过最高限额 ${rule.max_amount}` }
+      }
+      return { valid: true, message: '金额有效' }
     }
   }
 })
