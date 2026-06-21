@@ -12,17 +12,15 @@ export const useWithdrawalStore = defineStore('withdrawal', {
       applications: false,
       reviews: false,
       records: false
-    },
-    currentApplication: null,
-    currentRecord: null
+    }
   }),
 
   getters: {
     pendingCount: (state) => state.applications.filter((a) => a.status === 'pending').length,
     reviewingCount: (state) => state.applications.filter((a) => a.status === 'reviewing').length,
     activeRules: (state) => state.rules.filter((r) => r.status === 'active'),
-    getApplicationById: (state) => (id) => state.applications.find((a) => a.id === id),
-    getRecordById: (state) => (id) => state.records.find((r) => r.id === id)
+    getApplicationById: (state) => (id) => state.applications.find((a) => a.id === Number(id)),
+    getRecordById: (state) => (id) => state.records.find((r) => r.id === Number(id))
   },
 
   actions: {
