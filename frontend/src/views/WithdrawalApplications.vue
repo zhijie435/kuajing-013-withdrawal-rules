@@ -90,24 +90,26 @@
       destroy-on-close
     >
       <template v-if="isDetail">
-        <el-descriptions :column="2" border v-if="currentDetail">
-          <el-descriptions-item label="申请ID">{{ currentDetail.id }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="statusTagType(currentDetail.status)">{{ statusText(currentDetail.status) }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="用户ID">{{ currentDetail.user_id }}</el-descriptions-item>
-          <el-descriptions-item label="申请金额">{{ formatAmount(currentDetail.amount) }}</el-descriptions-item>
-          <el-descriptions-item label="手续费">{{ formatAmount(currentDetail.fee) }}</el-descriptions-item>
-          <el-descriptions-item label="实际到账">{{ formatAmount(currentDetail.actual_amount) }}</el-descriptions-item>
-          <el-descriptions-item label="银行名称">{{ currentDetail.bank_name }}</el-descriptions-item>
-          <el-descriptions-item label="银行账号">{{ currentDetail.bank_account }}</el-descriptions-item>
-          <el-descriptions-item label="开户名">{{ currentDetail.account_name }}</el-descriptions-item>
-          <el-descriptions-item label="规则ID">{{ currentDetail.rule_id }}</el-descriptions-item>
-          <el-descriptions-item label="审核备注" :span="2">{{ currentDetail.review_remark || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="审核人">{{ currentDetail.reviewer_id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="审核时间">{{ currentDetail.reviewed_at || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="申请时间">{{ currentDetail.created_at }}</el-descriptions-item>
-        </el-descriptions>
+        <div v-loading="detailLoading" style="min-height: 100px">
+          <el-descriptions :column="2" border v-if="currentDetail">
+            <el-descriptions-item label="申请ID">{{ currentDetail.id }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="statusTagType(currentDetail.status)">{{ statusText(currentDetail.status) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="用户ID">{{ currentDetail.user_id }}</el-descriptions-item>
+            <el-descriptions-item label="申请金额">{{ formatAmount(currentDetail.amount) }}</el-descriptions-item>
+            <el-descriptions-item label="手续费">{{ formatAmount(currentDetail.fee) }}</el-descriptions-item>
+            <el-descriptions-item label="实际到账">{{ formatAmount(currentDetail.actual_amount) }}</el-descriptions-item>
+            <el-descriptions-item label="银行名称">{{ currentDetail.bank_name }}</el-descriptions-item>
+            <el-descriptions-item label="银行账号">{{ currentDetail.bank_account }}</el-descriptions-item>
+            <el-descriptions-item label="开户名">{{ currentDetail.account_name }}</el-descriptions-item>
+            <el-descriptions-item label="规则ID">{{ currentDetail.rule_id }}</el-descriptions-item>
+            <el-descriptions-item label="审核备注" :span="2">{{ currentDetail.review_remark || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="审核人">{{ currentDetail.reviewer_id || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="审核时间">{{ currentDetail.reviewed_at || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="申请时间">{{ currentDetail.created_at }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
       </template>
       <template v-else>
         <el-alert
@@ -193,6 +195,7 @@ const currentDetail = ref(null)
 const amountTip = ref('')
 const submitting = ref(false)
 const submitError = ref('')
+const detailLoading = ref(false)
 
 const searchForm = reactive({
   status: ''
@@ -280,16 +283,21 @@ const handleAdd = () => {
 
 const handleViewDetail = async (row) => {
   isDetail.value = true
-  currentDetail.value = { ...row }
+  detailLoading.value = true
   try {
     const detail = await store.fetchApplicationDetail(row.id)
     if (detail) {
-      currentDetail.value = { ...row, ...detail }
+      currentDetail.value = { ...detail }
+    } else {
+      currentDetail.value = { ...row }
     }
+    dialogVisible.value = true
   } catch (e) {
-    // 保留列表行数据，保证明细与列表一致
+    currentDetail.value = { ...row }
+    dialogVisible.value = true
+  } finally {
+    detailLoading.value = false
   }
-  dialogVisible.value = true
 }
 
 const handleCancel = (row) => {

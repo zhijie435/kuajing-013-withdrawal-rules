@@ -65,33 +65,31 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     },
 
     async fetchApplicationDetail(id) {
-      const cached = this.getApplicationById(id)
-      if (cached) {
-        try {
-          const res = await get(`/applications/${id}`)
-          const remote = res.data || res
-          return { ...cached, ...remote }
-        } catch (e) {
-          return cached
+      const res = await get(`/applications/${id}`)
+      const detail = res.data || res
+      if (detail) {
+        const idx = this.applications.findIndex((a) => a.id === Number(id))
+        if (idx !== -1) {
+          this.applications[idx] = { ...this.applications[idx], ...detail }
+        }
+        const reviewIdx = this.reviews.findIndex((a) => a.id === Number(id))
+        if (reviewIdx !== -1) {
+          this.reviews[reviewIdx] = { ...this.reviews[reviewIdx], ...detail }
         }
       }
-      const res = await get(`/applications/${id}`)
-      return res.data || res
+      return detail
     },
 
     async fetchRecordDetail(id) {
-      const cached = this.getRecordById(id)
-      if (cached) {
-        try {
-          const res = await get(`/records/${id}`)
-          const remote = res.data || res
-          return { ...cached, ...remote }
-        } catch (e) {
-          return cached
+      const res = await get(`/records/${id}`)
+      const detail = res.data || res
+      if (detail) {
+        const idx = this.records.findIndex((r) => r.id === Number(id))
+        if (idx !== -1) {
+          this.records[idx] = { ...this.records[idx], ...detail }
         }
       }
-      const res = await get(`/records/${id}`)
-      return res.data || res
+      return detail
     },
 
     async checkWithdrawalLimit(userId, amount, ruleId) {

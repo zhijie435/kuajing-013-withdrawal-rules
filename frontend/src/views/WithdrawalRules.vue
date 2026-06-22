@@ -175,19 +175,36 @@ const handleEdit = (row) => {
 const handleSubmit = async () => {
   try {
     await formRef.value.validate()
+  } catch (e) {
+    return
+  }
+  submitting.value = true
+  submitError.value = ''
+  try {
+    const actionText = isEdit.value ? '更新' : '创建'
     if (isEdit.value) {
-      await store.updateRule(editingId.value, { ...form })
+      const res = await store.updateRule(editingId.value, { ...form })
+      if (res && res.code !== undefined && res.code !== 0) {
+        submitError.value = `${actionText}失败：${res.msg || '未知错误'}，请点击"重试"重新提交。`
+        return
+      }
       ElMessage.success('更新成功')
     } else {
-      await store.createRule({ ...form })
+      const res = await store.createRule({ ...form })
+      if (res && res.code !== undefined && res.code !== 0) {
+        submitError.value = `${actionText}失败：${res.msg || '未知错误'}，请点击"重试"重新提交。`
+        return
+      }
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
     store.fetchRules()
   } catch (e) {
-    if (e !== false && e?.message) {
-      ElMessage.error(e.message || '保存失败')
-    }
+    const errorMsg = e?.message || '未知错误'
+    const actionText = isEdit.value ? '更新' : '创建'
+    submitError.value = `${actionText}规则失败：${errorMsg}，请点击"重试"重新提交。`
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -202,9 +219,10 @@ const handleDelete = (row) => {
       ElMessage.success('删除成功')
       store.fetchRules()
     } catch (e) {
-      if (e?.message) {
-        ElMessage.error(e.message || '删除失败')
-      }
+      ElMessageBox.alert('删除规则失败，请稍后重试。', '操作失败', {
+        confirmButtonText: '我知道了',
+        type: 'error'
+      })
     }
   }).catch(() => {})
 }
@@ -216,9 +234,10 @@ const handleStatusChange = async (row, val) => {
     ElMessage.success('状态更新成功')
     store.fetchRules()
   } catch (e) {
-    if (e?.message) {
-      ElMessage.error(e.message || '状态更新失败')
-    }
+    ElMessageBox.alert('状态更新失败，请稍后重试。', '操作失败', {
+      confirmButtonText: '我知道了',
+      type: 'error'
+    })
     store.fetchRules()
   }
 }
