@@ -230,11 +230,14 @@ const handleReset = () => {
 }
 
 const handleViewDetail = async (row) => {
+  currentDetail.value = { ...row }
   try {
     const detail = await store.fetchApplicationDetail(row.id)
-    currentDetail.value = detail || row
+    if (detail) {
+      currentDetail.value = { ...row, ...detail }
+    }
   } catch (e) {
-    currentDetail.value = row
+    // 保留列表行数据，保证明细与列表一致
   }
   detailVisible.value = true
 }

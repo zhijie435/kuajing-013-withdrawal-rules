@@ -65,15 +65,33 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     },
 
     async fetchApplicationDetail(id) {
+      const cached = this.getApplicationById(id)
+      if (cached) {
+        try {
+          const res = await get(`/withdrawal/applications/${id}`)
+          const remote = res.data || res
+          return { ...cached, ...remote }
+        } catch (e) {
+          return cached
+        }
+      }
       const res = await get(`/withdrawal/applications/${id}`)
-      this.currentApplication = res.data || res
-      return this.currentApplication
+      return res.data || res
     },
 
     async fetchRecordDetail(id) {
+      const cached = this.getRecordById(id)
+      if (cached) {
+        try {
+          const res = await get(`/withdrawal/records/${id}`)
+          const remote = res.data || res
+          return { ...cached, ...remote }
+        } catch (e) {
+          return cached
+        }
+      }
       const res = await get(`/withdrawal/records/${id}`)
-      this.currentRecord = res.data || res
-      return this.currentRecord
+      return res.data || res
     },
 
     async checkWithdrawalLimit(userId, amount, ruleId) {

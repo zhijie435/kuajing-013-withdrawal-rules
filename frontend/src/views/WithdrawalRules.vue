@@ -4,12 +4,17 @@
       <template #header>
         <div class="card-header">
           <span>提现规则列表</span>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon>新增规则
-          </el-button>
+          <div class="header-actions">
+            <el-button type="primary" @click="handleAdd">
+              <el-icon><Plus /></el-icon>新增规则
+            </el-button>
+            <el-button @click="handleRefresh" :loading="store.loading.rules">
+              <el-icon><Refresh /></el-icon>刷新
+            </el-button>
+          </div>
         </div>
       </template>
-      <el-table :data="store.rules" stripe border style="width: 100%">
+      <el-table :data="store.rules" stripe border v-loading="store.loading.rules" style="width: 100%">
         <el-table-column prop="rule_name" label="规则名称" min-width="140" />
         <el-table-column prop="min_amount" label="最小金额" width="120" align="right">
           <template #default="{ row }">{{ formatAmount(row.min_amount) }}</template>
@@ -94,7 +99,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Refresh } from '@element-plus/icons-vue'
 import { useWithdrawalStore } from '../stores/withdrawal'
 
 const store = useWithdrawalStore()
@@ -102,6 +107,10 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref(null)
 const editingId = ref(null)
+
+const handleRefresh = () => {
+  store.fetchRules()
+}
 
 const defaultForm = {
   rule_name: '',
@@ -205,5 +214,10 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>
