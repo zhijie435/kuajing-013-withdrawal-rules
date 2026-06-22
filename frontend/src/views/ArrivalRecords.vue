@@ -217,7 +217,11 @@ const handleMarkSuccess = (row) => {
       ElMessage.success('标记成功')
       detailVisible.value = false
       handleRefresh()
-    } catch (e) {}
+    } catch (e) {
+      if (e?.message) {
+        ElMessage.error(e.message || '标记失败')
+      }
+    }
   }).catch(() => {})
 }
 

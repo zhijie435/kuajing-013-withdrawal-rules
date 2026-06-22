@@ -278,7 +278,7 @@ class OrderService {
                 'success' => true,
                 'recharge' => $rechargeResult,
                 'order' => $paidOrder,
-                'wallet' => $paidOrder,
+                'wallet' => $updatedWallet,
                 'frozen' => false,
                 'shortage' => 0,
                 'suggest_recharge' => 0,

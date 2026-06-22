@@ -87,10 +87,18 @@
             <el-radio value="inactive">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-alert
+          v-if="submitError"
+          :title="submitError"
+          type="error"
+          show-icon
+          style="margin-top: 12px"
+        />
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button v-if="submitError" type="warning" @click="handleSubmit">重试</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -107,6 +115,8 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref(null)
 const editingId = ref(null)
+const submitting = ref(false)
+const submitError = ref('')
 
 const handleRefresh = () => {
   store.fetchRules()
@@ -140,6 +150,7 @@ const formatAmount = (val) => {
 const handleAdd = () => {
   isEdit.value = false
   editingId.value = null
+  submitError.value = ''
   Object.assign(form, defaultForm)
   dialogVisible.value = true
 }
@@ -147,6 +158,7 @@ const handleAdd = () => {
 const handleEdit = (row) => {
   isEdit.value = true
   editingId.value = row.id
+  submitError.value = ''
   Object.assign(form, {
     rule_name: row.rule_name,
     min_amount: row.min_amount,
@@ -161,8 +173,8 @@ const handleEdit = (row) => {
 }
 
 const handleSubmit = async () => {
-  await formRef.value.validate()
   try {
+    await formRef.value.validate()
     if (isEdit.value) {
       await store.updateRule(editingId.value, { ...form })
       ElMessage.success('更新成功')
@@ -173,7 +185,9 @@ const handleSubmit = async () => {
     dialogVisible.value = false
     store.fetchRules()
   } catch (e) {
-    // error handled by interceptor
+    if (e !== false && e?.message) {
+      ElMessage.error(e.message || '保存失败')
+    }
   }
 }
 
@@ -188,7 +202,9 @@ const handleDelete = (row) => {
       ElMessage.success('删除成功')
       store.fetchRules()
     } catch (e) {
-      // error handled by interceptor
+      if (e?.message) {
+        ElMessage.error(e.message || '删除失败')
+      }
     }
   }).catch(() => {})
 }
@@ -196,11 +212,14 @@ const handleDelete = (row) => {
 const handleStatusChange = async (row, val) => {
   try {
     const newStatus = val ? 'active' : 'inactive'
-    await store.updateRule(row.id, { ...row, status: newStatus })
+    await store.updateRule(row.id, { status: newStatus })
     ElMessage.success('状态更新成功')
     store.fetchRules()
   } catch (e) {
-    // error handled by interceptor
+    if (e?.message) {
+      ElMessage.error(e.message || '状态更新失败')
+    }
+    store.fetchRules()
   }
 }
 

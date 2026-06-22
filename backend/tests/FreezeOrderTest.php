@@ -35,7 +35,7 @@ class FreezeOrderTest extends BaseTestCase {
         $first = $this->orderService->freezeOrder($orderId, 2, '首次冻结');
         $this->assertTrue($first['frozen']);
 
-        $second = $this->orderService->freezeOrder($orderId, 2, '再次冻结');
+        $second = $this->orderService->freezeOrder($orderId, 2);
         $this->assertTrue($second['frozen']);
         $this->assertContains('已处于冻结状态', $second['message']);
         $this->assertEqual(500, $second['shortage']);

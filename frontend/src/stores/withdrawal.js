@@ -27,8 +27,8 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     async fetchRules() {
       this.loading.rules = true
       try {
-        const res = await get('/withdrawal/rules/')
-        this.rules = res.data || res
+        const res = await get('/rules')
+        this.rules = res.data?.list || res.data || []
       } finally {
         this.loading.rules = false
       }
@@ -37,8 +37,8 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     async fetchApplications(params) {
       this.loading.applications = true
       try {
-        const res = await get('/withdrawal/applications/', params)
-        this.applications = res.data || res
+        const res = await get('/applications', params)
+        this.applications = res.data?.list || res.data || []
       } finally {
         this.loading.applications = false
       }
@@ -47,8 +47,8 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     async fetchReviews(params) {
       this.loading.reviews = true
       try {
-        const res = await get('/withdrawal/applications/', params)
-        this.reviews = res.data || res
+        const res = await get('/applications', params)
+        this.reviews = res.data?.list || res.data || []
       } finally {
         this.loading.reviews = false
       }
@@ -57,8 +57,8 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     async fetchRecords(params) {
       this.loading.records = true
       try {
-        const res = await get('/withdrawal/records/', params)
-        this.records = res.data || res
+        const res = await get('/records', params)
+        this.records = res.data?.list || res.data || []
       } finally {
         this.loading.records = false
       }
@@ -68,14 +68,14 @@ export const useWithdrawalStore = defineStore('withdrawal', {
       const cached = this.getApplicationById(id)
       if (cached) {
         try {
-          const res = await get(`/withdrawal/applications/${id}`)
+          const res = await get(`/applications/${id}`)
           const remote = res.data || res
           return { ...cached, ...remote }
         } catch (e) {
           return cached
         }
       }
-      const res = await get(`/withdrawal/applications/${id}`)
+      const res = await get(`/applications/${id}`)
       return res.data || res
     },
 
@@ -83,52 +83,52 @@ export const useWithdrawalStore = defineStore('withdrawal', {
       const cached = this.getRecordById(id)
       if (cached) {
         try {
-          const res = await get(`/withdrawal/records/${id}`)
+          const res = await get(`/records/${id}`)
           const remote = res.data || res
           return { ...cached, ...remote }
         } catch (e) {
           return cached
         }
       }
-      const res = await get(`/withdrawal/records/${id}`)
+      const res = await get(`/records/${id}`)
       return res.data || res
     },
 
     async checkWithdrawalLimit(userId, amount, ruleId) {
-      const res = await get('/withdrawal/check-limit/', { user_id: userId, amount, rule_id: ruleId })
+      const res = await get('/check-limit', { user_id: userId, amount, rule_id: ruleId })
       return res.data || res
     },
 
     async createRule(data) {
-      return await post('/withdrawal/rules/', data)
+      return await post('/rules', data)
     },
 
     async updateRule(id, data) {
-      return await put(`/withdrawal/rules/${id}`, data)
+      return await put(`/rules/${id}`, data)
     },
 
     async deleteRule(id) {
-      return await del(`/withdrawal/rules/${id}`)
+      return await del(`/rules/${id}`)
     },
 
     async createApplication(data) {
-      return await post('/withdrawal/applications/', data)
+      return await post('/applications', data)
     },
 
     async cancelApplication(id) {
-      return await put(`/withdrawal/applications/${id}/cancel`)
+      return await put(`/applications/${id}/cancel`)
     },
 
     async approveApplication(id, data) {
-      return await put(`/withdrawal/applications/${id}/approve`, data)
+      return await put(`/applications/${id}/approve`, data)
     },
 
     async rejectApplication(id, data) {
-      return await put(`/withdrawal/applications/${id}/reject`, data)
+      return await put(`/applications/${id}/reject`, data)
     },
 
     async updateRecord(id, data) {
-      return await put(`/withdrawal/records/${id}`, data)
+      return await put(`/records/${id}`, data)
     },
 
     calculateFee(amount, rule) {

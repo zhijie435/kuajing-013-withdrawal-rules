@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS withdrawal_applications (
     bank_account VARCHAR(50),
     account_name VARCHAR(50),
     rule_id INT,
-    status ENUM('pending','reviewing','approved','rejected','cancelled') DEFAULT 'pending',
+    status ENUM('pending','reviewing','approved','rejected','cancelled','completed','failed') DEFAULT 'pending',
     review_remark VARCHAR(255),
     reviewer_id INT,
     reviewed_at TIMESTAMP NULL,
@@ -64,3 +64,5 @@ CREATE TABLE IF NOT EXISTS review_logs (
     remark VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE withdrawal_applications MODIFY COLUMN status ENUM('pending','reviewing','approved','rejected','cancelled','completed','failed') DEFAULT 'pending';

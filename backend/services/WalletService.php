@@ -43,7 +43,9 @@ class WalletService {
     private function getWalletForUpdate($userId) {
         $pdo = $this->walletModel->getConnection();
         $table = $this->walletModel->getTable();
-        $stmt = $pdo->prepare("SELECT * FROM {$table} WHERE user_id = :user_id FOR UPDATE");
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $forUpdate = ($driver === 'mysql') ? ' FOR UPDATE' : '';
+        $stmt = $pdo->prepare("SELECT * FROM {$table} WHERE user_id = :user_id{$forUpdate}");
         $stmt->execute([':user_id' => $userId]);
         $wallet = $stmt->fetch();
         if (!$wallet) {
@@ -52,7 +54,7 @@ class WalletService {
                 'balance' => 0,
                 'frozen_amount' => 0,
             ]);
-            $stmt = $pdo->prepare("SELECT * FROM {$table} WHERE user_id = :user_id FOR UPDATE");
+            $stmt = $pdo->prepare("SELECT * FROM {$table} WHERE user_id = :user_id{$forUpdate}");
             $stmt->execute([':user_id' => $userId]);
             $wallet = $stmt->fetch();
         }

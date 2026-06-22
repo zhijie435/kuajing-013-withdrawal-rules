@@ -23,6 +23,8 @@
             <el-option label="已通过" value="approved" />
             <el-option label="已拒绝" value="rejected" />
             <el-option label="已取消" value="cancelled" />
+            <el-option label="已完成" value="completed" />
+            <el-option label="到账失败" value="failed" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -159,11 +161,19 @@
           <el-form-item label="开户名" prop="account_name">
             <el-input v-model="form.account_name" placeholder="请输入开户名" />
           </el-form-item>
+          <el-alert
+            v-if="submitError"
+            :title="submitError"
+            type="error"
+            show-icon
+            style="margin-top: 12px"
+          />
         </el-form>
       </template>
       <template #footer>
         <el-button @click="dialogVisible = false">关闭</el-button>
-        <el-button v-if="!isDetail" type="primary" @click="handleSubmit">提交申请</el-button>
+        <el-button v-if="!isDetail && submitError" type="warning" @click="handleSubmit">重试</el-button>
+        <el-button v-if="!isDetail" type="primary" :loading="submitting" @click="handleSubmit">提交申请</el-button>
       </template>
     </el-dialog>
   </div>
@@ -181,6 +191,8 @@ const isDetail = ref(false)
 const formRef = ref(null)
 const currentDetail = ref(null)
 const amountTip = ref('')
+const submitting = ref(false)
+const submitError = ref('')
 
 const searchForm = reactive({
   status: ''
@@ -225,7 +237,9 @@ const statusText = (status) => {
     reviewing: '审核中',
     approved: '已通过',
     rejected: '已拒绝',
-    cancelled: '已取消'
+    cancelled: '已取消',
+    completed: '已完成',
+    failed: '到账失败'
   }
   return map[status] || status
 }
@@ -236,7 +250,9 @@ const statusTagType = (status) => {
     reviewing: 'primary',
     approved: 'success',
     rejected: 'danger',
-    cancelled: 'info'
+    cancelled: 'info',
+    completed: 'success',
+    failed: 'danger'
   }
   return map[status] || 'info'
 }
@@ -257,6 +273,7 @@ const handleReset = () => {
 const handleAdd = () => {
   isDetail.value = false
   amountTip.value = ''
+  submitError.value = ''
   Object.assign(form, defaultForm)
   dialogVisible.value = true
 }
@@ -285,7 +302,12 @@ const handleCancel = (row) => {
       await store.cancelApplication(row.id)
       ElMessage.success('取消成功')
       handleRefresh()
-    } catch (e) {}
+    } catch (e) {
+      ElMessageBox.alert('取消申请失败，操作已回滚，请稍后重试。', '操作失败', {
+        confirmButtonText: '我知道了',
+        type: 'error'
+      })
+    }
   }).catch(() => {})
 }
 
@@ -303,7 +325,11 @@ const onAmountChange = () => {
 }
 
 const handleSubmit = async () => {
-  await formRef.value.validate()
+  try {
+    await formRef.value.validate()
+  } catch (e) {
+    return
+  }
   if (!selectedRule.value) {
     ElMessage.warning('请选择提现规则')
     return
@@ -313,17 +339,28 @@ const handleSubmit = async () => {
     ElMessage.warning(validation.message)
     return
   }
+  submitting.value = true
+  submitError.value = ''
   try {
     const { fee, actualAmount } = feeInfo.value
-    await store.createApplication({
+    const res = await store.createApplication({
       ...form,
       fee,
       actual_amount: actualAmount
     })
+    if (res && res.code !== undefined && res.code !== 0) {
+      submitError.value = `申请提交失败：${res.msg || '未知错误'}。余额扣减已回滚，请点击"重试"重新提交。`
+      return
+    }
     ElMessage.success('申请提交成功')
     dialogVisible.value = false
     handleRefresh()
-  } catch (e) {}
+  } catch (e) {
+    const errorMsg = e?.message || '未知错误'
+    submitError.value = `提交失败：${errorMsg}。余额扣减已回滚，请点击"重试"重新提交。`
+  } finally {
+    submitting.value = false
+  }
 }
 
 onMounted(async () => {

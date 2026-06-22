@@ -21,10 +21,18 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response) => {
-    return response.data
+    const res = response.data
+    if (res && typeof res === 'object' && 'code' in res) {
+      if (res.code !== 0) {
+        ElMessage.error(res.msg || '请求失败')
+        return Promise.reject(new Error(res.msg || '请求失败'))
+      }
+      return res
+    }
+    return res
   },
   (error) => {
-    const message = error.response?.data?.detail || error.message || '请求失败'
+    const message = error.response?.data?.msg || error.response?.data?.detail || error.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)
   }

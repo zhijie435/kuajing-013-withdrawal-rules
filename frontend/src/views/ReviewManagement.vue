@@ -19,6 +19,8 @@
             <el-option label="审核中" value="reviewing" />
             <el-option label="已通过" value="approved" />
             <el-option label="已拒绝" value="rejected" />
+            <el-option label="已完成" value="completed" />
+            <el-option label="到账失败" value="failed" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -143,10 +145,18 @@
             :placeholder="reviewAction === 'approve' ? '请输入审核备注（选填）' : '请输入拒绝原因（必填）'"
           />
         </el-form-item>
+        <el-alert
+          v-if="submitError"
+          :title="submitError"
+          type="error"
+          show-icon
+          style="margin-top: 12px"
+        />
       </el-form>
       <template #footer>
         <el-button @click="reviewVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitReview">确定</el-button>
+        <el-button v-if="submitError" type="warning" @click="submitReview">重试</el-button>
+        <el-button type="primary" :loading="reviewSubmitting" @click="submitReview">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -165,6 +175,8 @@ const reviewFormRef = ref(null)
 const currentDetail = ref(null)
 const reviewTargetId = ref(null)
 const reviewAction = ref('approve')
+const reviewSubmitting = ref(false)
+const submitError = ref('')
 
 const searchForm = reactive({
   status: ''
@@ -200,7 +212,9 @@ const statusText = (status) => {
     reviewing: '审核中',
     approved: '已通过',
     rejected: '已拒绝',
-    cancelled: '已取消'
+    cancelled: '已取消',
+    completed: '已完成',
+    failed: '到账失败'
   }
   return map[status] || status
 }
@@ -211,7 +225,9 @@ const statusTagType = (status) => {
     reviewing: 'primary',
     approved: 'success',
     rejected: 'danger',
-    cancelled: 'info'
+    cancelled: 'info',
+    completed: 'success',
+    failed: 'danger'
   }
   return map[status] || 'info'
 }
@@ -246,6 +262,7 @@ const handleApprove = (row) => {
   reviewAction.value = 'approve'
   reviewTargetId.value = row.id
   reviewForm.review_remark = ''
+  submitError.value = ''
   reviewVisible.value = true
 }
 
@@ -253,29 +270,56 @@ const handleReject = (row) => {
   reviewAction.value = 'reject'
   reviewTargetId.value = row.id
   reviewForm.review_remark = ''
+  submitError.value = ''
   reviewVisible.value = true
 }
 
 const submitReview = async () => {
-  await reviewFormRef.value.validate()
+  try {
+    await reviewFormRef.value.validate()
+  } catch (e) {
+    return
+  }
+  const actionText = reviewAction.value === 'approve' ? '通过' : '拒绝'
+  reviewSubmitting.value = true
+  submitError.value = ''
   try {
     if (reviewAction.value === 'approve') {
-      await store.approveApplication(reviewTargetId.value, {
+      const res = await store.approveApplication(reviewTargetId.value, {
         review_remark: reviewForm.review_remark,
         reviewer_id: 1
       })
-      ElMessage.success('审核通过成功')
+      if (res && res.code !== undefined && res.code !== 0) {
+        submitError.value = `审核${actionText}失败：${res.msg || '未知错误'}。数据已回滚，请点击"重试"重新提交。`
+        return
+      }
+      ElMessage.success(`审核${actionText}成功`)
     } else {
-      await store.rejectApplication(reviewTargetId.value, {
+      const res = await store.rejectApplication(reviewTargetId.value, {
         review_remark: reviewForm.review_remark,
         reviewer_id: 1
       })
-      ElMessage.success('审核拒绝成功')
+      if (res && res.code !== undefined && res.code !== 0) {
+        submitError.value = `审核${actionText}失败：${res.msg || '未知错误'}。数据已回滚，请点击"重试"重新提交。`
+        return
+      }
+      ElMessage.success(`审核${actionText}成功`)
     }
     reviewVisible.value = false
     detailVisible.value = false
     handleRefresh()
-  } catch (e) {}
+    if (reviewAction.value === 'approve') {
+      store.fetchRecords()
+    }
+  } catch (e) {
+    const errorMsg = e?.message || '未知错误'
+    const rollbackHint = reviewAction.value === 'approve'
+      ? '审核通过操作已回滚，申请状态和余额未变更'
+      : '审核拒绝操作已回滚，申请状态和余额未变更'
+    submitError.value = `提交失败：${errorMsg}。${rollbackHint}，请点击"重试"重新提交。`
+  } finally {
+    reviewSubmitting.value = false
+  }
 }
 
 onMounted(() => {
