@@ -67,6 +67,8 @@
               v-if="row.status === 'processing'"
               type="success"
               link
+              :loading="row._markLoading"
+              :disabled="row._markLoading"
               @click="handleMarkSuccess(row)"
             >
               标记到账
@@ -75,6 +77,8 @@
               v-if="row.status === 'processing'"
               type="danger"
               link
+              :loading="row._markLoading"
+              :disabled="row._markLoading"
               @click="openMarkFailed(row)"
             >
               标记失败
@@ -272,17 +276,48 @@ const handleMarkSuccess = (row) => {
     '确认操作',
     { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
   ).then(async () => {
+    const oldStatus = row.status
+    const oldArrivedAt = row.arrived_at
+    const nowStr = dayjs().format('YYYY-MM-DD HH:mm:ss')
+    row._markLoading = true
+    row.status = 'success'
+    row.arrived_at = nowStr
+    if (currentDetail.value && currentDetail.value.id === row.id) {
+      currentDetail.value = { ...currentDetail.value, status: 'success', arrived_at: nowStr }
+    }
     try {
-      await store.updateRecord(row.id, {
+      const res = await store.updateRecord(row.id, {
         status: 'success',
-        arrived_at: dayjs().format('YYYY-MM-DD HH:mm:ss')
+        arrived_at: nowStr
       })
+      if (res && res.code !== undefined && res.code !== 0) {
+        row.status = oldStatus
+        row.arrived_at = oldArrivedAt
+        if (currentDetail.value && currentDetail.value.id === row.id) {
+          currentDetail.value = { ...currentDetail.value, status: oldStatus, arrived_at: oldArrivedAt }
+        }
+        ElMessageBox.alert(`标记失败：${res.msg || '未知错误'}，状态已自动回滚。`, '操作失败', {
+          confirmButtonText: '我知道了',
+          type: 'error'
+        })
+        return
+      }
       ElMessage.success('标记成功，申请单状态已同步为已完成')
       detailVisible.value = false
-      handleRefresh()
       store.fetchApplications()
     } catch (e) {
-      if (e?.message) ElMessage.error(e.message || '标记失败')
+      row.status = oldStatus
+      row.arrived_at = oldArrivedAt
+      if (currentDetail.value && currentDetail.value.id === row.id) {
+        currentDetail.value = { ...currentDetail.value, status: oldStatus, arrived_at: oldArrivedAt }
+      }
+      const errorMsg = e?.message || '未知错误'
+      ElMessageBox.alert(`标记失败：${errorMsg}，状态已自动回滚。`, '操作失败', {
+        confirmButtonText: '我知道了',
+        type: 'error'
+      })
+    } finally {
+      row._markLoading = false
     }
   }).catch(() => {})
 }
@@ -300,20 +335,50 @@ const submitMarkFailed = async () => {
     return
   }
   if (!markFailedTarget.value) return
+  const row = markFailedTarget.value
+  const oldStatus = row.status
+  const oldFailReason = row.fail_reason
+  row._markLoading = true
+  row.status = 'failed'
+  row.fail_reason = failedForm.fail_reason
+  if (currentDetail.value && currentDetail.value.id === row.id) {
+    currentDetail.value = { ...currentDetail.value, status: 'failed', fail_reason: failedForm.fail_reason }
+  }
   markFailedLoading.value = true
   try {
-    await store.updateRecord(markFailedTarget.value.id, {
+    const res = await store.updateRecord(row.id, {
       status: 'failed',
       fail_reason: failedForm.fail_reason
     })
+    if (res && res.code !== undefined && res.code !== 0) {
+      row.status = oldStatus
+      row.fail_reason = oldFailReason
+      if (currentDetail.value && currentDetail.value.id === row.id) {
+        currentDetail.value = { ...currentDetail.value, status: oldStatus, fail_reason: oldFailReason }
+      }
+      ElMessageBox.alert(`标记失败：${res.msg || '未知错误'}，状态已自动回滚。`, '操作失败', {
+        confirmButtonText: '我知道了',
+        type: 'error'
+      })
+      return
+    }
     ElMessage.success('已标记失败，款项将自动退回用户余额，申请单状态已同步')
     failedDialogVisible.value = false
     detailVisible.value = false
-    handleRefresh()
     store.fetchApplications()
   } catch (e) {
-    if (e?.message) ElMessage.error(e.message || '操作失败')
+    row.status = oldStatus
+    row.fail_reason = oldFailReason
+    if (currentDetail.value && currentDetail.value.id === row.id) {
+      currentDetail.value = { ...currentDetail.value, status: oldStatus, fail_reason: oldFailReason }
+    }
+    const errorMsg = e?.message || '未知错误'
+    ElMessageBox.alert(`标记失败：${errorMsg}，状态已自动回滚。`, '操作失败', {
+      confirmButtonText: '我知道了',
+      type: 'error'
+    })
   } finally {
+    row._markLoading = false
     markFailedLoading.value = false
   }
 }

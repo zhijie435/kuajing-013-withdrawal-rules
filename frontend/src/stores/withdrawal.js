@@ -102,31 +102,65 @@ export const useWithdrawalStore = defineStore('withdrawal', {
     },
 
     async updateRule(id, data) {
-      return await put(`/rules/${id}`, data)
+      const res = await put(`/rules/${id}`, data)
+      const idx = this.rules.findIndex((r) => r.id === Number(id))
+      if (idx !== -1) {
+        const merged = { ...this.rules[idx], ...data }
+        if (typeof merged.status === 'boolean') {
+          merged.status = merged.status ? 'active' : 'inactive'
+        }
+        this.rules[idx] = merged
+      }
+      return res
     },
 
     async deleteRule(id) {
-      return await del(`/rules/${id}`)
+      const res = await del(`/rules/${id}`)
+      this.rules = this.rules.filter((r) => r.id !== Number(id))
+      return res
     },
 
     async createApplication(data) {
       return await post('/applications', data)
     },
 
-    async cancelApplication(id) {
-      return await put(`/applications/${id}/cancel`)
-    },
-
     async approveApplication(id, data) {
-      return await put(`/applications/${id}/approve`, data)
+      const res = await put(`/applications/${id}/approve`, data)
+      if (res && res.code === 0) {
+        await this.fetchApplicationDetail(id)
+      }
+      return res
     },
 
     async rejectApplication(id, data) {
-      return await put(`/applications/${id}/reject`, data)
+      const res = await put(`/applications/${id}/reject`, data)
+      if (res && res.code === 0) {
+        await this.fetchApplicationDetail(id)
+      }
+      return res
+    },
+
+    async cancelApplication(id) {
+      const res = await put(`/applications/${id}/cancel`)
+      if (res && res.code === 0) {
+        await this.fetchApplicationDetail(id)
+      }
+      return res
     },
 
     async updateRecord(id, data) {
-      return await put(`/records/${id}`, data)
+      const res = await put(`/records/${id}`, data)
+      if (res && res.code === 0) {
+        const idx = this.records.findIndex((r) => r.id === Number(id))
+        if (idx !== -1) {
+          const merged = { ...this.records[idx], ...data }
+          if (data.status === 'success' && !merged.arrived_at) {
+            merged.arrived_at = new Date().toISOString().replace('T', ' ').substring(0, 19)
+          }
+          this.records[idx] = merged
+        }
+      }
+      return res
     },
 
     calculateFee(amount, rule) {

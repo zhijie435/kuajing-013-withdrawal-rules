@@ -40,6 +40,8 @@
               :model-value="row.status === 'active'"
               active-text="启用"
               inactive-text="禁用"
+              :loading="row._statusLoading"
+              :disabled="row._statusLoading"
               @change="(val) => handleStatusChange(row, val)"
             />
           </template>
@@ -228,17 +230,32 @@ const handleDelete = (row) => {
 }
 
 const handleStatusChange = async (row, val) => {
+  const oldStatus = row.status
+  const newStatus = val ? 'active' : 'inactive'
+  if (oldStatus === newStatus) return
+
+  row._statusLoading = true
+  row.status = newStatus
   try {
-    const newStatus = val ? 'active' : 'inactive'
-    await store.updateRule(row.id, { status: newStatus })
+    const res = await store.updateRule(row.id, { status: newStatus })
+    if (res && res.code !== undefined && res.code !== 0) {
+      row.status = oldStatus
+      ElMessageBox.alert(`状态更新失败：${res.msg || '未知错误'}，已自动回滚。`, '操作失败', {
+        confirmButtonText: '我知道了',
+        type: 'error'
+      })
+      return
+    }
     ElMessage.success('状态更新成功')
-    store.fetchRules()
   } catch (e) {
-    ElMessageBox.alert('状态更新失败，请稍后重试。', '操作失败', {
+    row.status = oldStatus
+    const errorMsg = e?.message || '未知错误'
+    ElMessageBox.alert(`状态更新失败：${errorMsg}，已自动回滚。`, '操作失败', {
       confirmButtonText: '我知道了',
       type: 'error'
     })
-    store.fetchRules()
+  } finally {
+    row._statusLoading = false
   }
 }
 
